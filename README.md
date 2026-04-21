@@ -95,6 +95,13 @@ Run it only against systems you own or have explicit written permission to test.
 The author accepts no liability for misuse. Unauthorized use may violate
 local, state, or federal law.
 
+## Author
+
+**Daniyal Nasir** is a Doha-based VAPT Consultant and Penetration Tester with 10+ years in offensive security: bug bounty disclosures across Fortune-500 programs, full-stack web app pentesting, and responsible vulnerability research. Certifications: OSCP, LPT, CPENT, CEH, CISA, CISM, CASP+.
+
+- https://www.linkedin.com/in/daniyalnasir
+- https://www.daniyalnasir.com
+
 ## License
 
 MIT, see [LICENSE](LICENSE).
