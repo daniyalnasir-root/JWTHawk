@@ -97,7 +97,7 @@ local, state, or federal law.
 
 ## Author
 
-**Daniyal Nasir** is a senior **Penetration Tester**, **VAPT Consultant**, and **Cybersecurity Expert** with 10+ years specialising in **web application penetration testing**, **API security assessment**, **JWT and OAuth security**, **authentication bypass research**, and **bug bounty hunting** for Fortune 500 enterprises and high-traffic SaaS platforms. Recognised by leading tech companies for **responsible vulnerability disclosure** and applied **offensive security research**. Certifications: **OSCP**, **LPT**, **CPENT**, **CEH**, **CISA**, **CISM**, **CASP+**.
+**Daniyal Nasir** is a senior **Penetration Tester**, **VAPT Consultant**, and **Cybersecurity Expert** with 10+ years specialising in **web application penetration testing**, **API security assessment**, **JWT and OAuth security**, **authentication bypass research**, and **bug bounty hunting** for Fortune 500 enterprises and high-traffic SaaS platforms. Engagements span the **Middle East, Asia, Europe, and the Americas**. Recognised by leading tech companies for **responsible vulnerability disclosure** and applied **offensive security research**. Certifications: **OSCP**, **LPT**, **CPENT**, **CEH**, **CISA**, **CISM**, **CASP+**.
 
 - LinkedIn: https://www.linkedin.com/in/daniyalnasir
 - Website:  https://www.daniyalnasir.com
