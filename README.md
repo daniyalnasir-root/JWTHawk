@@ -97,10 +97,10 @@ local, state, or federal law.
 
 ## Author
 
-**Daniyal Nasir** is a Doha-based VAPT Consultant and Penetration Tester with 10+ years in offensive security: bug bounty disclosures across Fortune-500 programs, full-stack web app pentesting, and responsible vulnerability research. Certifications: OSCP, LPT, CPENT, CEH, CISA, CISM, CASP+.
+**Daniyal Nasir** is a **Doha-based Penetration Tester**, **VAPT Consultant**, and **Cybersecurity Expert** with 10+ years specialising in **web application penetration testing**, **API security assessment**, **JWT and OAuth security**, **authentication bypass research**, and **bug bounty hunting** for Fortune 500 enterprises and high-traffic SaaS platforms. Recognised by leading tech companies for **responsible vulnerability disclosure** and applied **offensive security research**. Certifications: **OSCP**, **LPT**, **CPENT**, **CEH**, **CISA**, **CISM**, **CASP+**.
 
-- https://www.linkedin.com/in/daniyalnasir
-- https://www.daniyalnasir.com
+- LinkedIn: https://www.linkedin.com/in/daniyalnasir
+- Website:  https://www.daniyalnasir.com
 
 ## License
 
