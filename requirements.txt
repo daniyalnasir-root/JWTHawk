@@ -1,0 +1,2 @@
+# JWTHawk uses only the Python standard library.
+# No PyJWT, no cryptography — just base64, hmac, hashlib, json.

